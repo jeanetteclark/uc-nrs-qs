@@ -1,0 +1,705 @@
+---
+title: "UC NRS Questionnaire"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r, warning = FALSE, message = FALSE}
+library(qualtRics)
+library(dplyr) 
+library(ggplot2)
+library(tidyr)
+library(scales)
+library(stringr)
+library(DT)
+library(stringi)
+library(igraph)
+```
+
+```{r, warning = FALSE, message = FALSE}
+s <- all_surveys() %>% 
+  filter(grepl("UC NRS EDMS Survey", name))
+
+sf <- fetch_survey(s$id, verbose = FALSE) %>% 
+  filter(StartDate > as.POSIXct("2022-11-01"))
+questions <- survey_questions(s$id) %>% 
+  mutate(number = as.numeric(gsub("Q", "", qname)))
+```
+
+
+```{r}
+num_started <- nrow(sf)
+```
+
+### Response Status
+
+`r num_started` questionnaires were completed as of `r Sys.time()`. 
+
+```{r}
+theme_uc <- 
+  theme_bw(base_size=12,base_family="Helvetica") +
+  theme(
+    plot.title=element_text(size=11, face="bold",margin=margin(10,0,10,0),color="#1D244F"),
+    plot.subtitle = element_text(size=10,margin=margin(0,0,10,0),color="#1D244F"),
+    axis.text.x = element_text(size=8, vjust=0.5, color="#1D244F"),
+    axis.text.y = element_text(size=8, color="#1D244F"),
+    axis.title.x = element_text(color="#1D244F",vjust=-.5,size=10),
+    axis.title.y = element_text(color="#1D244F",angle=90,vjust=.5,size=10),
+    panel.background=element_rect(fill="white"),
+    axis.line = element_line(color="#1D244F"),
+    panel.grid.major = element_line(colour = "gray", size = 0.01), 
+    panel.grid.minor = element_line(colour = "gray", size = 0.04),
+  )
+```
+
+
+```{r, fig.width=12, fig.height=8}
+q1 <- sf %>% 
+  select("Q1") %>% 
+  mutate(Q1 = as.character(Q1)) %>% 
+  group_by(Q1) %>% 
+  summarise(n = n()) %>% 
+  arrange(-n) %>% 
+  drop_na()
+
+q1$Q1 <- factor(q1$Q1, levels = rev(q1$Q1))
+
+ggplot(q1, aes(x = Q1, y = n)) +
+  geom_col(fill = "#2C5786") +
+  geom_text(aes(label=n), position=position_dodge(width=0.9), hjust=-0.25) +
+  #scale_x_discrete(labels = label_wrap(20)) +
+  labs(x = "", y = "Number of responses", title = "What primary reserve do you interact with?") +
+  theme_uc +
+  coord_flip()
+
+```
+
+
+```{r}
+q2 <- sf %>% 
+  select(starts_with("Q2")) %>% 
+  unite(all_ans, sep = ", ", na.rm = TRUE) %>% 
+  filter(all_ans != "")
+
+```
+
+```{r}
+q3 <- sf %>% 
+  select("Q3") %>% 
+  mutate(Q3 = as.character(Q3)) %>% 
+  group_by(Q3) %>% 
+  summarise(n = n()) %>% 
+  arrange(-n) %>% 
+  drop_na()
+
+q3$Q3 <- factor(q3$Q3, levels = q3$Q3)
+
+ggplot(q3, aes(x = Q3, y = n)) +
+  geom_col(fill = "#2C5786") +
+  geom_text(aes(label=n), position=position_dodge(width=0.9), vjust=-0.25) +
+  scale_x_discrete(labels = label_wrap(20)) +
+  labs(x = "", y = "Number of responses", title = "What is your primary activity at UC NRS Reserves?") +
+  theme_uc
+
+```
+
+```{r}
+q3_t <- sf %>% 
+  select(starts_with("Q3_5"))  %>% 
+  drop_na() %>% 
+  mutate(Q3_5_TEXT= tolower(Q3_5_TEXT)) %>% 
+  mutate(Q3_5_TEXT = trimws(Q3_5_TEXT, which = "both")) %>% 
+  group_by(Q3_5_TEXT) %>% 
+  summarise(n = n()) %>% 
+  filter(Q3_5_TEXT != "") %>% 
+  arrange(-n) %>% 
+  rename(`Other (please indicate)` = Q3_5_TEXT)
+  
+
+
+datatable(q3_t, )
+```
+
+
+```{r}
+q4 <- sf %>% 
+  select("Q4") %>% 
+  mutate(Q4 = as.character(Q4)) %>% 
+  group_by(Q4) %>% 
+  summarise(n = n()) %>% 
+  arrange(-n) %>% 
+  drop_na()
+
+q4$Q4 <- factor(q4$Q4, levels = q4$Q4)
+
+ggplot(q4, aes(x = Q4, y = n)) +
+  geom_col(fill = "#2C5786") +
+  geom_text(aes(label=n), position=position_dodge(width=0.9), vjust=-0.25) +
+  #scale_x_discrete(labels = label_wrap(20)) +
+  labs(x = "", y = "Number of responses", title = "Do you collect data at UC NRS Reserve sites?") +
+  theme_uc
+
+```
+
+
+```{r, fig.width=12, fig.height=8}
+q5 <- sf %>% 
+  select(starts_with("Q5")) %>% 
+  pivot_longer(cols = starts_with("Q5"), names_to = "t", values_to = "Q5") %>% 
+  mutate(Q5 = as.character(Q5)) %>% 
+  group_by(Q5) %>% 
+  summarise(n = n()) %>% 
+  arrange(-n) %>% 
+  drop_na()
+
+q5$Q5 <- factor(q5$Q5, levels = rev(q5$Q5))
+
+ggplot(q5, aes(x = Q5, y = n)) +
+  geom_col(fill = "#2C5786") +
+  geom_text(aes(label=n), position=position_dodge(width=0.9), hjust=-0.25) +
+  #scale_x_discrete(labels = label_wrap(20)) +
+  labs(x = "", y = "Number of responses", title = "At which Reserve sites do you collect data?") +
+  theme_uc +
+  coord_flip()
+```
+
+
+```{r}
+q6 <- sf %>% 
+  select("Q6") %>% 
+  mutate(Q6 = as.character(Q6)) %>% 
+  group_by(Q6) %>% 
+  summarise(n = n()) %>% 
+  arrange(-n) %>% 
+  drop_na()
+
+q6$Q6 <- factor(q6$Q6, levels = q6$Q6)
+
+ggplot(q6, aes(x = Q6, y = n)) +
+  geom_col(fill = "#2C5786") +
+  geom_text(aes(label=n), position=position_dodge(width=0.9), vjust=-0.25) +
+  #scale_x_discrete(labels = label_wrap(20)) +
+  labs(x = "", y = "Number of responses", title = "How do you primarily use data you collect at NRS Reserve sites?") +
+  theme_uc
+```
+
+```{r}
+q6_t <- sf %>% 
+  select(starts_with("Q6_4_TEXT"))  %>% 
+  drop_na() %>% 
+  mutate(Q6_4_TEXT= tolower(Q6_4_TEXT)) %>% 
+  mutate(Q6_4_TEXT = trimws(Q6_4_TEXT, which = "both")) %>% 
+  group_by(Q6_4_TEXT) %>% 
+  summarise(n = n()) %>% 
+  filter(Q6_4_TEXT != "") %>% 
+  arrange(-n) %>% 
+  rename(`Other (please indicate)` = Q6_4_TEXT)
+  
+
+
+datatable(q6_t, )
+```
+
+
+```{r}
+q7 <- sf %>% 
+  select(starts_with("Q7")) %>% 
+  mutate(Q7 = as.character(Q7)) %>% 
+  group_by(Q7) %>% 
+  summarise(n = n()) %>% 
+  arrange(n) %>% 
+  drop_na()
+
+# set the question responses as a factor so you can order it in the plot
+q7$Q7 <- factor(q7$Q7, levels = c("< 1 GB",
+                                          "1-10 GB",
+                                          "10-100 GB",
+                                          "100 GB - 1 TB",
+                                          "> 1 TB"))
+
+ggplot(q7, aes(x = Q7, y = n)) +
+  geom_col(fill = "#2C5786") +
+  geom_text(aes(label=n), position=position_dodge(width=0.9), vjust=-0.25) +
+  #scale_x_discrete(labels = label_wrap(20)) +
+  labs(x = "", y = "Number of responses", title = "How much data have you collected, in total?") +
+  theme_uc
+```
+
+
+```{r, fig.width=12,  fig.height=8}
+q8 <- sf %>% 
+  select(starts_with("Q8")) %>% 
+  pivot_longer(cols = starts_with("Q8"), names_to = "t", values_to = "Q8") %>% 
+  mutate(Q8 = as.character(Q8)) %>% 
+  group_by(Q8) %>% 
+  summarise(n = n()) %>% 
+  arrange(-n) %>% 
+  drop_na()
+
+q8$Q8 <- factor(q8$Q8, levels = rev(q8$Q8))
+
+ggplot(q8, aes(x = Q8, y = n)) +
+  geom_col(fill = "#2C5786") +
+  geom_text(aes(label=n), position=position_dodge(width=0.9), hjust=-0.25) +
+  #scale_x_discrete(labels = label_wrap(20)) +
+  labs(x = "", y = "Number of responses", title = "In what disciplines do your data fall?") +
+  theme_uc +
+  coord_flip()
+```
+
+
+```{r, fig.width=10}
+q9 <- sf %>% 
+  select(Q9_1:Q9_8) %>% 
+  pivot_longer(cols = starts_with("Q9"), names_to = "t", values_to = "Q9") %>% 
+  mutate(Q9 = as.character(Q9)) %>% 
+  group_by(Q9) %>% 
+  summarise(n = n()) %>% 
+  arrange(-n) %>% 
+  drop_na()  %>% 
+  mutate(Q9 = gsub("\\s*\\([^\\)]+\\)","", Q9))
+
+q9$Q9 <- factor(q9$Q9, levels = q9$Q9)
+
+ggplot(q9, aes(x = Q9, y = n)) +
+  geom_col(fill = "#2C5786") +
+  geom_text(aes(label=n), position=position_dodge(width=0.9), vjust=-0.25) +
+  scale_x_discrete(labels = label_wrap(20)) +
+  labs(x = "", y = "Number of responses", title = "What methods do you use?") +
+  theme_uc
+```
+
+```{r}
+q9_t <- sf %>% 
+  select(starts_with("Q9_8_TEXT")) %>% 
+  drop_na() %>% 
+  mutate(Q9_8_TEXT= tolower(Q9_8_TEXT)) %>% 
+  mutate(Q9_8_TEXT = trimws(Q9_8_TEXT, which = "both")) %>% 
+  group_by(Q9_8_TEXT) %>% 
+  summarise(n = n()) %>% 
+  filter(Q9_8_TEXT != "") %>% 
+  arrange(-n) %>% 
+  rename(`Other (please indicate)` = Q9_8_TEXT)
+  
+
+
+datatable(q9_t, )
+```
+
+
+
+**NOTE: The first 75 respondants were not able to answer this question due to a survey update issue**
+
+```{r}
+q10 <- sf %>% 
+  select(starts_with("Q10")) %>% 
+  mutate(Q10 = as.character(Q10)) %>% 
+  group_by(Q10) %>% 
+  summarise(n = n()) %>% 
+  arrange(n) %>% 
+  drop_na()
+
+# set the question responses as a factor so you can order it in the plot
+q10$Q10 <- factor(q10$Q10, levels = rev(c("None",
+                                          "< 25%",
+                                          "25 - 50%",
+                                          "50 - 75%",
+                                          "> 75%")))
+
+ggplot(q10, aes(x = Q10, y = n)) +
+  geom_col(fill = "#2C5786") +
+  geom_text(aes(label=n), position=position_dodge(width=0.9), vjust=-0.25) +
+  #scale_x_discrete(labels = label_wrap(20)) +
+  labs(x = "", y = "Number of responses", title = "How much data have you shared with a DOI?") +
+  theme_uc
+```
+
+
+```{r, fig.width=8}
+q11 <- sf %>% 
+  select(Q11_1:Q11_8) %>% 
+  pivot_longer(cols = starts_with("Q11"), names_to = "t", values_to = "Q11") %>% 
+  mutate(Q11 = as.character(Q11)) %>% 
+  group_by(Q11) %>% 
+  summarise(n = n()) %>% 
+  arrange(-n) %>% 
+  drop_na() %>% 
+  mutate(Q11 = gsub("\\s*\\([^\\)]+\\)","", Q11))
+
+q11$Q11 <- factor(q11$Q11, levels = q11$Q11)
+
+ggplot(q11, aes(x = Q11, y = n)) +
+  geom_col(fill = "#2C5786") +
+  geom_text(aes(label=n), position=position_dodge(width=0.9), vjust=-0.25) +
+  scale_x_discrete(labels = label_wrap(20)) +
+  labs(x = "", y = "Number of responses", title = "On what platforms do you share your data?") +
+  theme_uc
+
+```
+
+
+```{r}
+q11_t <- sf %>% 
+  select(starts_with("Q11_8_T")) %>% 
+  drop_na() %>% 
+  mutate(Q11_8_TEXT= tolower(Q11_8_TEXT)) %>% 
+  mutate(Q11_8_TEXT = trimws(Q11_8_TEXT, which = "both")) %>% 
+  group_by(Q11_8_TEXT) %>% 
+  summarise(n = n()) %>% 
+  filter(Q11_8_TEXT != "") %>% 
+  arrange(-n) %>% 
+  rename(`Other (please indicate)` = Q11_8_TEXT)
+  
+
+
+datatable(q11_t, )
+```
+
+
+```{r}
+q12 <- sf %>% 
+  select(Q12) %>% 
+  drop_na() %>% 
+  mutate(Q12= tolower(Q12))
+
+sp <- stri_split_fixed(q12$Q12, pattern = ",", simplify = TRUE) %>% 
+  as.data.frame() %>% 
+  pivot_longer(cols = everything(), names_to = "t", values_to = "platform") %>% 
+  mutate(platform = trimws(platform, which = "both")) %>% 
+  group_by(platform) %>% 
+  summarise(n = n()) %>% 
+  filter(platform != "") %>% 
+  arrange(-n)
+  
+
+
+datatable(sp)
+```
+
+```{r}
+q13 <- sf %>% 
+  select("Q13") %>% 
+  mutate(Q13 = as.character(Q13)) %>% 
+  group_by(Q13) %>% 
+  summarise(n = n()) %>% 
+  arrange(-n) %>% 
+  drop_na()
+
+q13$Q13 <- factor(q13$Q13, levels = q13$Q13)
+
+ggplot(q13, aes(x = Q13, y = n)) +
+  geom_col(fill = "#2C5786") +
+  geom_text(aes(label=n), position=position_dodge(width=0.9), vjust=-0.25) +
+  #scale_x_discrete(labels = label_wrap(20)) +
+  labs(x = "", y = "Number of responses", title = "Do you use data collected by others?") +
+  theme_uc
+```
+
+```{r, fig.width=10}
+q14 <- sf %>% 
+  select(Q14_1:Q14_6) %>% 
+  pivot_longer(cols = starts_with("Q14"), names_to = "t", values_to = "Q14") %>% 
+  mutate(Q14 = as.character(Q14)) %>% 
+  group_by(Q14) %>% 
+  summarise(n = n()) %>% 
+  arrange(-n) %>% 
+  drop_na() %>% 
+  mutate(Q14 = gsub("\\s*\\([^\\)]+\\)","", Q14))
+
+q14$Q14 <- factor(q14$Q14, levels = q14$Q14)
+
+ggplot(q14, aes(x = Q14, y = n)) +
+  geom_col(fill = "#2C5786") +
+  geom_text(aes(label=n), position=position_dodge(width=0.9), vjust=-0.25) +
+  scale_x_discrete(labels = label_wrap(30)) +
+  labs(x = "", y = "Number of responses", title = "How did you access those data?") +
+  theme_uc
+
+```
+
+
+```{r}
+q14_t <- sf %>% 
+  select(starts_with("Q14_6_TEXT")) %>% 
+  drop_na() %>% 
+  mutate(Q14_6_TEXT= tolower(Q14_6_TEXT)) %>% 
+  mutate(Q14_6_TEXT = trimws(Q14_6_TEXT, which = "both")) %>% 
+  group_by(Q14_6_TEXT) %>% 
+  summarise(n = n()) %>% 
+  filter(Q14_6_TEXT != "") %>% 
+  arrange(-n) %>% 
+  rename(`Other (please indicate)` = Q14_6_TEXT)
+  
+
+
+datatable(q14_t, )
+```
+
+
+```{r}
+q15 <- sf %>% 
+  select("Q15") %>% 
+  mutate(Q15 = as.character(Q15)) %>% 
+  group_by(Q15) %>% 
+  summarise(n = n()) %>% 
+  arrange(-n) %>% 
+  drop_na()
+
+q15$Q15 <- factor(q15$Q15, levels = q15$Q15)
+
+ggplot(q15, aes(x = Q15, y = n)) +
+  geom_col(fill = "#2C5786") +
+  geom_text(aes(label=n), position=position_dodge(width=0.9), vjust=-0.25) +
+  #scale_x_discrete(labels = label_wrap(20)) +
+  labs(x = "", y = "Number of responses", title = "How do you primarily use data collected by others?") +
+  theme_uc
+
+```
+
+
+```{r}
+q15_t <- sf %>% 
+  select(starts_with("Q15_4_TEXT"))  %>% 
+  drop_na() %>% 
+  mutate(Q15_4_TEXT= tolower(Q15_4_TEXT)) %>% 
+  mutate(Q15_4_TEXT = trimws(Q15_4_TEXT, which = "both")) %>% 
+  group_by(Q15_4_TEXT) %>% 
+  summarise(n = n()) %>% 
+  filter(Q15_4_TEXT != "") %>% 
+  arrange(-n) %>% 
+  rename(`Other (please indicate)` = Q15_4_TEXT)
+  
+
+
+datatable(q15_t, )
+```
+
+
+```{r}
+q16 <- sf %>% 
+  select(Q16) %>% 
+  drop_na() %>% 
+  mutate(Q16= tolower(Q16)) %>% 
+  filter(!(Q16 %in% c("no", "n/a", "none", "na", "not right now.", "not currently", "not that i can think of"))) %>% 
+  rename(`Are there data you wish you had access to?` = Q16)
+
+datatable(q16)
+```
+
+```{r, fig.width=10}
+q17 <- sf %>% 
+  select(Q17_1:Q17_8) %>% 
+  pivot_longer(cols = starts_with("Q17"), names_to = "t", values_to = "Q17") %>% 
+  mutate(Q17 = as.character(Q17)) %>% 
+  group_by(Q17) %>% 
+  summarise(n = n()) %>% 
+  arrange(-n) %>% 
+  drop_na() %>% 
+  mutate(Q17 = gsub("\\s*\\([^\\)]+\\)","", Q17))
+
+q17$Q17 <- factor(q17$Q17, levels = q17$Q17)
+
+ggplot(q17, aes(x = Q17, y = n)) +
+  geom_col(fill = "#2C5786") +
+  geom_text(aes(label=n), position=position_dodge(width=0.9), vjust=-0.25) +
+  scale_x_discrete(labels = label_wrap(20)) +
+  labs(x = "", y = "Number of responses", title = "What types of data should the NRS prioritize in making available?") +
+  theme_uc
+
+```
+
+
+```{r}
+q17_t <- sf %>% 
+  select(starts_with("Q17_8_TEXT"))  %>% 
+  drop_na() %>% 
+  mutate(Q17_8_TEXT= tolower(Q17_8_TEXT)) %>% 
+  mutate(Q17_8_TEXT = trimws(Q17_8_TEXT, which = "both")) %>% 
+  group_by(Q17_8_TEXT) %>% 
+  summarise(n = n()) %>% 
+  filter(Q17_8_TEXT != "") %>% 
+  arrange(-n) %>% 
+  rename(`Other (please indicate)` = Q17_8_TEXT)
+  
+
+
+datatable(q17_t, )
+```
+
+
+```{r, fig.width=12}
+q18 <- sf %>% 
+  select(starts_with("Q18"))
+
+  
+answers <- lapply(q18, attr, "label") %>% 
+  unlist() %>% 
+  unname() %>% 
+  stringr::str_extract("- .*$") %>% 
+    gsub("- ", "", .)
+
+names(q18) <- answers  
+
+q18 <- 
+  pivot_longer(q18, cols = everything(), names_to = "Item", values_to = "Rank") %>% 
+  filter(Rank <= 5) %>% 
+  group_by(Item) %>% 
+  summarise(n = mean(Rank, na.rm = TRUE)) %>% 
+  arrange(-n) %>% 
+  drop_na()
+
+q18$Item <- factor(q18$Item, levels = q18$Item)
+
+ggplot(q18, aes(x = Item, y = n)) +
+  geom_col(fill = "#2C5786") +
+  geom_text(aes(label=round(n, 2)), position=position_dodge(width=0.9), hjust=-0.25) +
+  #scale_x_discrete(labels = label_wrap(30)) +
+  labs(x = "", y = "Mean Rank", title = "What currently offered research station amenities or services do you think\nare the most important to facilitating your work? (Rank from 1 to 5)") +
+  theme_uc +
+  coord_flip()
+```
+
+
+```{r, fig.width=8}
+q19 <- sf %>% 
+  select(Q19_1:Q19_10) %>% 
+  pivot_longer(cols = starts_with("Q19"), names_to = "t", values_to = "Q19") %>% 
+  mutate(Q19 = as.character(Q19)) %>% 
+  group_by(Q19) %>% 
+  summarise(n = n()) %>% 
+  arrange(-n) %>% 
+  drop_na()
+
+q19$Q19 <- factor(q19$Q19, levels = rev(q19$Q19))
+
+ggplot(q19, aes(x = Q19, y = n)) +
+  geom_col(fill = "#2C5786") +
+  geom_text(aes(label=n), position=position_dodge(width=0.9), hjust=-0.25) +
+  scale_x_discrete(labels = label_wrap(30)) +
+  labs(x = "", y = "Number of responses", title = "Where should further investments be made by the UC NRS to enable key\nadvances in information management and data sharing?") +
+  theme_uc +
+  coord_flip()
+
+```
+
+
+```{r}
+q19_t <- sf %>% 
+  select(starts_with("Q19_10_TEXT"))  %>% 
+  drop_na() %>% 
+  mutate(Q19_10_TEXT= tolower(Q19_10_TEXT)) %>% 
+  mutate(Q19_10_TEXT = trimws(Q19_10_TEXT, which = "both")) %>% 
+  group_by(Q19_10_TEXT) %>% 
+  summarise(n = n()) %>% 
+  filter(Q19_10_TEXT != "") %>% 
+  arrange(-n) %>% 
+  rename(`Other (please indicate)` = Q19_10_TEXT)
+  
+
+
+datatable(q19_t, )
+```
+
+
+```{r}
+q21 <- sf %>% 
+  select(Q21) %>% 
+  drop_na() %>% 
+  rename(`Additional comments` = Q21)
+
+datatable(q21)
+```
+
+
+### Network of primary reserve (nodes) and other reserves (edges)
+
+Nodes are sized by the number of respondents who indicated that reserve as their primary reserve. Edges are sized (by thickness) according to the number of times each node is connected. So, thicker lines mean more respondents use the same primary and other reserve pair.
+
+
+```{r}
+prim_reserve <- sf %>% 
+  select(Q1) %>% 
+  rename(primary= Q1)
+
+
+other_reserves <- sf %>% 
+  select(starts_with("Q2_"))
+
+  
+answers <- lapply(other_reserves, attr, "label") %>% 
+  unlist() %>% 
+  unname() %>% 
+  stringr::str_extract("- .*$") %>% 
+    gsub("- ", "", .)
+
+names(other_reserves) <- answers  
+
+other_reserves$primary <- prim_reserve$primary
+
+other_reserves_long <- other_reserves %>% 
+  pivot_longer(-primary, names_to = "reserve", values_to = "reserve2", values_drop_na = TRUE) %>% 
+  select(-reserve2) %>% 
+  filter(primary != "Multiple reserves equally") %>% 
+  drop_na()
+  
+q1t <- q1 %>% 
+  mutate(Q1 = as.character(Q1)) %>% 
+  rename(primary = Q1) %>% 
+  filter(primary != "Multiple reserves equally") 
+
+
+i <- which(!(answers%in% q1t$primary))
+
+q_add <- data.frame(primary = answers[i], n = 0)
+
+qtot <- rbind(q1t, q_add)
+
+
+attr(other_reserves_long$primary, "label") <- NULL
+
+wrap_strings <- function(vector_of_strings,width){
+  as.character(sapply(vector_of_strings, FUN=function(x){
+                        paste(strwrap(x, width=width), collapse="\n")
+                        }))
+}
+
+other_reserves_long$primary <- wrap_strings(other_reserves_long$primary, 15)
+other_reserves_long$reserve <- wrap_strings(other_reserves_long$reserve, 15)
+
+qtot$primary <- wrap_strings(qtot$primary, 15)
+
+```
+
+
+```{r, fig.width=15, fig.height=15}
+rnet <- graph_from_data_frame(other_reserves_long, vertices = qtot)
+
+kamadaLayout <- layout.kamada.kawai(rnet)
+E(rnet)$weight <- 1 
+rnet <- simplify(rnet, edge.attr.comb=list(weight="sum"))
+
+## Make layout reproducible. Different values will produce different layouts,
+##  but setting a seed will allow you to reproduce a layout if you like it.
+set.seed(3)
+
+
+
+V(rnet)$size = V(rnet)$n
+
+plot(rnet,
+     layout = kamadaLayout,
+     vertex.color = "tomato",
+     vertex.frame.color = NA,
+     vertex.label.font = 2,
+     vertex.label.cex = .7,
+     vertex.label.color = "black",
+     edge.arrow.size = .3,
+     edge.curved = 0.1,
+     edge.width=E(rnet)$weight)
+```
+
+
+
