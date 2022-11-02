@@ -56,6 +56,8 @@ theme_uc <-
 ```
 
 
+### Primary Reserve and Activities
+
 ```{r, fig.width=12, fig.height=8}
 q1 <- sf %>% 
   select("Q1") %>% 
@@ -123,6 +125,7 @@ q3_t <- sf %>%
 datatable(q3_t, )
 ```
 
+### Data Collection
 
 ```{r}
 q4 <- sf %>% 
@@ -289,7 +292,7 @@ q9_t <- sf %>%
 datatable(q9_t, )
 ```
 
-
+### Data Sharing
 
 **NOTE: The first 75 respondants were not able to answer this question due to a survey update issue**
 
@@ -372,12 +375,15 @@ sp <- stri_split_fixed(q12$Q12, pattern = ",", simplify = TRUE) %>%
   group_by(platform) %>% 
   summarise(n = n()) %>% 
   filter(platform != "") %>% 
-  arrange(-n)
+  arrange(-n) %>% 
+  rename(`What specific platforms do you share your data on?` = platform)
   
 
 
 datatable(sp)
 ```
+
+### Data Re-use
 
 ```{r}
 q13 <- sf %>% 
@@ -529,6 +535,14 @@ q17_t <- sf %>%
 datatable(q17_t, )
 ```
 
+### Research Station Amenities
+
+For the following question, scores for each option are calculated by taking the sum of the rank-normalized number of votes. Votes with rank values higher than 5 are discarded.  
+
+$$ Score = \sum_{0}^r \frac{n_1}{1}+\frac{n_2}{2}+\frac{n_3}{3} + \frac{n_4}{4} + \frac{n_5}{5} $$
+
+Where $n_1$ is the number of votes with a rank of 1, $n_2$ is the number of votes with a rank of 2, etc. Scores are then summed over all responses ($r$).
+
 
 ```{r, fig.width=12}
 q18 <- sf %>% 
@@ -544,20 +558,32 @@ answers <- lapply(q18, attr, "label") %>%
 names(q18) <- answers  
 
 q18 <- 
-  pivot_longer(q18, cols = everything(), names_to = "Item", values_to = "Rank") %>% 
-  filter(Rank <= 5) %>% 
+  pivot_longer(q18, cols = everything(), names_to = "Item", values_to = "Rank")
+
+df <- list()
+for (i in 1:5){
+  df[[i]] <- q18 %>% 
+    filter(Rank == i) %>% 
+    group_by(Item, Rank) %>% 
+    summarise(n = n(), .groups = "drop")
+}
+
+
+df_all <- do.call(rbind, df) %>% 
+  mutate(norm_vote = n/Rank) %>% 
   group_by(Item) %>% 
-  summarise(n = mean(Rank, na.rm = TRUE)) %>% 
-  arrange(-n) %>% 
-  drop_na()
+  summarise(norm_rank = sum(norm_vote), .groups = "drop") %>% 
+  arrange(norm_rank)
 
-q18$Item <- factor(q18$Item, levels = q18$Item)
+df_all$Item <- factor(df_all$Item, levels = df_all$Item)
 
-ggplot(q18, aes(x = Item, y = n)) +
+
+
+ggplot(df_all, aes(x = Item, y = norm_rank))+
   geom_col(fill = "#2C5786") +
-  geom_text(aes(label=round(n, 2)), position=position_dodge(width=0.9), hjust=-0.25) +
+  geom_text(aes(label=round(norm_rank)), position=position_dodge(width=0.9), hjust=-0.25) +
   #scale_x_discrete(labels = label_wrap(30)) +
-  labs(x = "", y = "Mean Rank", title = "What currently offered research station amenities or services do you think\nare the most important to facilitating your work? (Rank from 1 to 5)") +
+  labs(x = "", y = "Total score", title = "What currently offered research station amenities or services do you think\nare the most important to facilitating your work? (Rank from 1 to 5)") +
   theme_uc +
   coord_flip()
 ```
