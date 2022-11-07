@@ -19,12 +19,14 @@ library(stringi)
 library(igraph)
 ```
 
-```{r, warning = FALSE, message = FALSE}
+```{r, warning=FALSE, message=FALSE}
 s <- all_surveys() %>% 
   filter(grepl("UC NRS EDMS Survey", name))
 
-sf <- fetch_survey(s$id, verbose = FALSE) %>% 
+sf <- fetch_survey(s$id, verbose = FALSE, convert = FALSE) %>% 
   filter(StartDate > as.POSIXct("2022-11-01"))
+
+
 questions <- survey_questions(s$id) %>% 
   mutate(number = as.numeric(gsub("Q", "", qname)))
 ```
