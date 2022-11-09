@@ -1,6 +1,10 @@
 ---
 title: "UC NRS Questionnaire"
-output: html_document
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
 ---
 
 ```{r setup, include=FALSE}
@@ -656,7 +660,7 @@ datatable(q21)
 ```
 
 
-### Network of primary reserve (nodes) and other reserves (edges)
+### Network of Reserves
 
 Nodes are sized by the number of respondents who indicated that reserve as their primary reserve. Edges are sized (by thickness) according to the number of times each node is connected. So, thicker lines mean more respondents use the same primary and other reserve pair.
 
