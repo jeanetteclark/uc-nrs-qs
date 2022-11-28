@@ -154,6 +154,7 @@ ggplot(q4, aes(x = Q4, y = n)) +
 ```
 
 
+
 ```{r, fig.width=12, fig.height=8}
 q5 <- sf %>% 
   select(starts_with("Q5")) %>% 
@@ -367,6 +368,7 @@ q11_t <- sf %>%
 datatable(q11_t, )
 ```
 
+This table shows the result of some preliminary cleaning of the free text answers. Answers were split by common delimiters (, ;), URL domains were extracted, and a couple of acronyms which commonly appeared both as the acronym and spelled out name were reconciled so that they were aggregated correctly. More work is likely needed to accurately capture every data sharing platform listed in the responses.
 
 ```{r}
 q12 <- sf %>% 
