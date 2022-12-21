@@ -301,11 +301,17 @@ datatable(q9_t, )
 
 ### Data Sharing
 
-**NOTE: The first 75 respondants were not able to answer this question due to a survey update issue**
+**NOTE: The first 113 respondants were not able to answer the question, "What percentage of your data have you shared with a DOI?".**
+
+
 
 ```{r}
+#Survey sent out 2022-11-01 17:57 UCT
+#DOI question fixed 2022-11-01 18:26 UCT
+
+
 q10 <- sf %>% 
-  select(starts_with("Q10")) %>% 
+  select(starts_with("Q10")) %>%
   mutate(Q10 = as.character(Q10)) %>% 
   group_by(Q10) %>% 
   summarise(n = n()) %>% 
@@ -368,41 +374,22 @@ q11_t <- sf %>%
 datatable(q11_t, )
 ```
 
-This table shows the result of some preliminary cleaning of the free text answers. Answers were split by common delimiters (, ;), URL domains were extracted, and a couple of acronyms which commonly appeared both as the acronym and spelled out name were reconciled so that they were aggregated correctly. More work is likely needed to accurately capture every data sharing platform listed in the responses.
+This table shows the aggregation of the free text answers. The 148 free text answers were cleaned by hand to resolve naming discrepancies (eg: CEDEN and California Environmental Data Exchange Network are the same sharing platform). The results were then aggregated. Totals represent the number of times that platform was mentioned in a survey response, and most responses listed more than one platform.
 
 ```{r}
 q12 <- sf %>% 
     select(Q12) %>% 
-    drop_na() %>% 
-    mutate(Q12= tolower(Q12)) %>% 
-    mutate(Q12 = gsub("http://www.", "", Q12)) %>% 
-    mutate(Q12 = gsub("http://", "", Q12)) %>% 
-    mutate(Q12 = gsub("https://www.", "", Q12)) %>% 
-    mutate(Q12 = gsub("https://", "", Q12)) %>% 
-    mutate(Q12 = gsub(".com | .org", "", Q12)) %>%  
-    mutate(Q12 = gsub("n/a", "", Q12)) %>% 
-    mutate(Q12 = gsub("[/;.]", ",", Q12)) %>% 
-    mutate(Q12 = gsub("and", ",", Q12)) %>% 
-    mutate(Q12 = gsub("california data exchange center", "ceden", Q12))
+    drop_na()
 
-sp <- stri_split_fixed(q12$Q12, pattern = ",", simplify = TRUE) %>% 
-    as.data.frame() %>% 
-    pivot_longer(cols = everything(), names_to = "t", values_to = "platform") %>% 
-    mutate(platform = gsub("and", "", platform)) %>% 
-    mutate(platform = gsub("[^[:alnum:] ]", "", platform)) %>% 
-    mutate(platform = trimws(platform, which = "both")) %>% 
-    mutate(platform_ceden = str_extract(platform, "ceden")) %>% 
-    mutate(platform = ifelse(!is.na(platform_ceden), platform_ceden, platform)) %>% 
+platforms_coded <- read.csv("platforms.csv", na.strings = c("NA", "")) %>% 
+    pivot_longer(cols = -Q12, names_to = "t", values_to = "platform") %>% 
+    drop_na() %>% 
     group_by(platform) %>% 
     summarise(n = n()) %>% 
-    filter(platform != "") %>% 
     arrange(-n) %>% 
-    filter(!(platform %in% c("org", "data", "gov", "www", "ca"))) %>% 
     rename(`What specific platforms do you share your data on?` = platform)
 
-
-
-datatable(sp)
+datatable(platforms_coded)
 ```
 
 ### Data Re-use
